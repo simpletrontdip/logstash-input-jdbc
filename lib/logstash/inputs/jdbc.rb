@@ -164,10 +164,10 @@ module LogStash module Inputs class Jdbc < LogStash::Inputs::Base
   # 
   # [source, ruby]
   # -----------------------------------------------
-  # cron_custom_check => "ENV['some_global_flag']"
+  # custom_cron_check => "ENV['some_global_flag']"
   # -----------------------------------------------
   # 
-  config :cron_custom_check, :validate => :string, :default => 'true'
+  config :custom_cron_check, :validate => :string, :default => 'true'
 
   # Path to file with last run time
   config :last_run_metadata_path, :validate => :string, :default => "#{ENV['HOME']}/.logstash_jdbc_last_run"
