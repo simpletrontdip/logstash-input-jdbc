@@ -158,6 +158,16 @@ module LogStash module Inputs class Jdbc < LogStash::Inputs::Base
   # There is no schedule by default. If no schedule is given, then the statement is run
   # exactly once.
   config :schedule, :validate => :string
+  
+  # Custom check before every cron execute, return boolean value
+  # Something that will hardly be helpful in some specific case
+  # 
+  # [source, ruby]
+  # -----------------------------------------------
+  # cron_custom_check => "ENV['some_global_flag']"
+  # -----------------------------------------------
+  # 
+  config :cron_custom_check, :validate => :string, :default => 'true'
 
   # Path to file with last run time
   config :last_run_metadata_path, :validate => :string, :default => "#{ENV['HOME']}/.logstash_jdbc_last_run"
@@ -258,6 +268,10 @@ module LogStash module Inputs class Jdbc < LogStash::Inputs::Base
         converters[encoding] = converter
       end
     end
+    
+    if @custom_cron_check
+      eval("define_singleton_method :do_cron_check do \n #{@code} \nend", binding, "(jdbc input custom_cron_check)")
+    end
   end # def register
 
   # test injection points
@@ -273,7 +287,7 @@ module LogStash module Inputs class Jdbc < LogStash::Inputs::Base
     if @schedule
       @scheduler = Rufus::Scheduler.new(:max_work_threads => 1)
       @scheduler.cron @schedule do
-        execute_query(queue)
+        execute_query(queue) if final_cron_check
       end
 
       @scheduler.join
@@ -288,6 +302,14 @@ module LogStash module Inputs class Jdbc < LogStash::Inputs::Base
   end
 
   private
+  
+  def final_cron_check
+    do_cron_check
+  rescue Exception => e
+    @logger.error("Custom cron check exception occurred: #{e.message}",
+                  :class     => e.class.name,
+                  :backtrace => e.backtrace)
+  end
 
   def validate_prepared_statement_mode
     error_messages = []
